@@ -1,0 +1,74 @@
+#include <ctime>
+
+class Stopwatch {
+    int seconds;
+    bool paused;
+    mutable int queryCount;
+
+    static int stopwatchCount;
+    static int activeStopwatches;
+
+public:
+    explicit Stopwatch(int sec) 
+        : seconds(sec), paused(true), queryCount(0) {
+        stopwatchCount++;
+    }
+
+    explicit Stopwatch(double min) 
+        : seconds(static_cast<int>(min * 60)), paused(true), queryCount(0) {
+        stopwatchCount++;
+    }
+
+    ~Stopwatch() {
+        stopwatchCount--;
+        if (!paused) {
+            activeStopwatches--;
+        }
+    }
+
+    void Tick() {
+        if (!paused) {
+            seconds++;
+        }
+    }
+
+    void pause(bool pauseState = true) {
+        if (paused != pauseState) {
+            paused = pauseState;
+            if (paused) {
+                activeStopwatches--;
+            } else {
+                activeStopwatches++;
+            }
+        }
+    }
+
+    int GetSeconds() const {
+        queryCount++;
+        return seconds;
+    }
+
+    double GetMinutes() const {
+        queryCount++;
+        return seconds / 60.0;
+    }
+
+    bool IsPaused() const {
+        return paused;
+    }
+
+    int GetQueryCount() const {
+        return queryCount;
+    }
+
+    static int GetStopwatchCount() {
+        return stopwatchCount;
+    }
+
+    static int GetActiveStopwatches() {
+        return activeStopwatches;
+    }
+};
+
+int Stopwatch::stopwatchCount = 0;
+int Stopwatch::activeStopwatches = 0;
