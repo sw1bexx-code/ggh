@@ -1,0 +1,77 @@
+class Item {
+    string Name;
+};
+
+class ItemSlot {
+    Item* item;
+public:
+    ItemSlot() : item(nullptr) {}
+    Item* GetItem() const { return item; }
+    void SetItem(Item* newItem) { item = newItem; }
+    bool IsEmpty() const { return item == nullptr; }
+};
+
+class Inventory {
+    int slots_num;
+    ItemSlot* slots;
+public:
+    Inventory(int num) : slots_num(num) {
+        slots = new ItemSlot[slots_num];
+    }
+    ~Inventory() { delete[] slots; }
+    bool AddItem(Item* item) {
+        for (int i = 0; i < slots_num; ++i)
+            if (slots[i].IsEmpty()) {
+                slots[i].SetItem(item);
+                return true;
+            }
+        return false;
+    }
+    Item* RemoveItem(int index) {
+        if (index >= 0 && index < slots_num && !slots[index].IsEmpty()) {
+            Item* item = slots[index].GetItem();
+            slots[index].SetItem(nullptr);
+            return item;
+        }
+        return nullptr;
+    }
+};
+
+class Actor {
+public:
+    virtual ~Actor() {}
+    virtual void Update() = 0;
+};
+
+class Character : public Actor {
+    Inventory inventory;
+public:
+    Character(int invSize) : inventory(invSize) {}
+    Inventory& GetInventory() { return inventory; }
+    void Update() override {}
+};
+
+class DroppedItem : public Actor {
+    Item item;
+public:
+    DroppedItem(const string& name) { item.Name = name; }
+    Item& GetItem() { return item; }
+    void Update() override {}
+};
+
+class Scene {
+    Actor** actors;
+    int actorCount;
+    int capacity;
+public:
+    Scene(int maxActors = 100) : actorCount(0), capacity(maxActors) {
+        actors = new Actor*[capacity];
+    }
+    ~Scene() {
+        for (int i = 0; i < actorCount; ++i) delete actors[i];
+        delete[] actors;
+    }
+    void AddActor(Actor* actor) {
+        if (actorCount < capacity) actors[actorCount++] = actor;
+    }
+};
