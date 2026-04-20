@@ -1,0 +1,24 @@
+cd todo-list
+git init
+echo "1. Купить продукты" > Tasks.txt
+echo "2. Позвонить маме" >> Tasks.txt
+echo "3. Закончить отчёт" >> Tasks.txt
+git add Tasks.txt
+git commit -m "первоначальная фиксация"
+echo "4. Записаться к врачу" >> Tasks.txt
+echo "Tasks.txt" > Done.txt
+echo "Done.txt" >> Done.txt
+git add Tasks.txt Done.txt
+git commit -m "Добавить файл выполненных задач"
+git log --oneline
+git branch update-tasks
+git checkout update-tasks
+echo "3. Закончить отчёт" > Tasks.txt
+echo "4. Записаться к врачу" >> Tasks.txt
+git add Tasks.txt
+git commit -m "удалить выполненные задачи"
+git checkout main
+echo "5. Выучить Git" >> Tasks.txt
+git add Tasks.txt
+git commit -m "добавить новую задачу на главной ветке"
+git log --oneline --graph --all
