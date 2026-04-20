@@ -1,0 +1,168 @@
+#include <iostream>
+#include <string>
+#include <iomanip>
+
+using namespace std;
+
+struct Student {
+    string fullName;
+    int age;
+    int course;
+    double averageGrade;
+    string specialty;
+};
+
+struct ArrayStudents {
+    Student** ptrSt;
+    int Size;
+    int Count;
+    int Block;
+};
+
+void InputData(Student* s) {
+    cout << "Введіть ПІБ: ";
+    getline(cin >> ws, s->fullName);
+    cout << "Введіть вік: ";
+    cin >> s->age;
+    cout << "Введіть курс: ";
+    cin >> s->course;
+    cout << "Введіть середній бал: ";
+    cin >> s->averageGrade;
+    cout << "Введіть спеціальність: ";
+    getline(cin >> ws, s->specialty);
+}
+
+void AddStudents(ArrayStudents& arr) {
+    if (arr.Count == arr.Size) {
+        int newSize = arr.Size + arr.Block;
+        Student** temp = new Student*[newSize];
+        for (int i = 0; i < arr.Count; i++) {
+            temp[i] = arr.ptrSt[i];
+        }
+        delete[] arr.ptrSt;
+        arr.ptrSt = temp;
+        arr.Size = newSize;
+    }
+    arr.ptrSt[arr.Count] = new Student;
+    InputData(arr.ptrSt[arr.Count]);
+    arr.Count++;
+    cout << "Студента успішно додано!" << endl;
+}
+
+void Print(const ArrayStudents& arr) {
+    if (arr.Count == 0) {
+        cout << "Список порожній." << endl;
+        return;
+    }
+    cout << setfill('-') << setw(85) << "-" << endl;
+    cout << setfill(' ');
+    cout << "| " << setw(3) << "№" 
+         << "| " << setw(25) << "ПІБ" 
+         << "| " << setw(5) << "Вік" 
+         << "| " << setw(6) << "Курс" 
+         << "| " << setw(8) << "Бал" 
+         << "| " << setw(20) << "Спеціальність" << " |" << endl;
+    cout << setfill('-') << setw(85) << "-" << endl;
+    cout << setfill(' ');
+
+    for (int i = 0; i < arr.Count; i++) {
+        cout << "| " << setw(3) << i + 1 
+             << "| " << setw(25) << arr.ptrSt[i]->fullName 
+             << "| " << setw(5) << arr.ptrSt[i]->age 
+             << "| " << setw(6) << arr.ptrSt[i]->course 
+             << "| " << setw(8) << arr.ptrSt[i]->averageGrade 
+             << "| " << setw(20) << arr.ptrSt[i]->specialty << " |" << endl;
+    }
+    cout << setfill('-') << setw(85) << "-" << endl;
+}
+
+void EditStudent(ArrayStudents& arr) {
+    if (arr.Count == 0) return;
+    int index;
+    cout << "Введіть номер студента для редагування (1-" << arr.Count << "): ";
+    cin >> index;
+    if (index >= 1 && index <= arr.Count) {
+        InputData(arr.ptrSt[index - 1]);
+        cout << "Дані оновлено." << endl;
+    } else {
+        cout << "Невірний номер." << endl;
+    }
+}
+
+void DeleteStudent(ArrayStudents& arr) {
+    if (arr.Count == 0) return;
+    int index;
+    cout << "Введіть номер студента для видалення: ";
+    cin >> index;
+    if (index >= 1 && index <= arr.Count) {
+        delete arr.ptrSt[index - 1];
+        for (int i = index - 1; i < arr.Count - 1; i++) {
+            arr.ptrSt[i] = arr.ptrSt[i + 1];
+        }
+        arr.Count--;
+        cout << "Студента видалено." << endl;
+    } else {
+        cout << "Невірний номер." << endl;
+    }
+}
+
+void SortStudents(ArrayStudents& arr) {
+    for (int i = 0; i < arr.Count - 1; i++) {
+        for (int j = 0; j < arr.Count - i - 1; j++) {
+            if (arr.ptrSt[j]->fullName > arr.ptrSt[j + 1]->fullName) {
+                swap(arr.ptrSt[j], arr.ptrSt[j + 1]);
+            }
+        }
+    }
+    cout << "Список відсортовано за ПІБ." << endl;
+}
+
+void Destroy(ArrayStudents& arr) {
+    for (int i = 0; i < arr.Count; i++) {
+        delete arr.ptrSt[i];
+    }
+    delete[] arr.ptrSt;
+    arr.ptrSt = nullptr;
+    arr.Count = 0;
+    arr.Size = 0;
+}
+
+int Menu() {
+    int choice;
+    cout << "\n--- МЕНЮ ПРОГРАМИ ---" << endl;
+    cout << "1. Додати студента" << endl;
+    cout << "2. Показати список" << endl;
+    cout << "3. Редагувати студента" << endl;
+    cout << "4. Видалити студента" << endl;
+    cout << "5. Сортувати студентів (ПІБ)" << endl;
+    cout << "6. Вихід" << endl;
+    cout << "Ваш вибір: ";
+    cin >> choice;
+    return choice;
+}
+
+int main() {
+    system("chcp 65001 > nul");
+
+    ArrayStudents school;
+    school.Count = 0;
+    school.Block = 2;
+    school.Size = school.Block;
+    school.ptrSt = new Student*[school.Size];
+
+    bool run = true;
+    while (run) {
+        switch (Menu()) {
+            case 1: AddStudents(school); break;
+            case 2: Print(school); break;
+            case 3: EditStudent(school); break;
+            case 4: DeleteStudent(school); break;
+            case 5: SortStudents(school); break;
+            case 6: run = false; break;
+            default: cout << "Помилка вибору." << endl;
+        }
+    }
+
+    Destroy(school);
+    return 0;
+}
