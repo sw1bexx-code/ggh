@@ -1,0 +1,302 @@
+Що таке клас? — Це шаблон для створення об'єктів (як форма для печива).
+
+Що таке об'єкт класу? — Конкретна змінна, створена за шаблоном класу (саме печиво).
+
+Що таке конструктор? — Метод, який автоматично спрацьовує при створенні об'єкта.
+
+Для чого private? — Щоб ніхто ззовні не бачив і не чіпав внутрішні дані.
+
+Для чого public? — Щоб до методів/даних можна було звертатися з будь-якого місця.
+
+Що таке наслідування? — Коли один клас бере все від іншого + додає своє.
+
+Що означає "клас Воїн: public Персонаж"? — Воїн — це різновид Персонажа (успадковує все публічне).
+
+Для чого гетери (getHealth)? — Щоб отримати значення приватної змінної.
+
+Що робить оператор ->? — Звертається до методу/поля через вказівник.
+
+Для чого інкапсуляція? — Щоб сховати внутрішності класу і захистити дані.
+
+Що робить оператор? — Не зрозуміло питання (напевно: виконує дію над даними).
+
+
+
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+class Character
+{
+private:
+    string name;
+    float health;
+    float max_health;
+    bool is_dead;
+
+    void UpdateIsDead()
+    {
+        this->is_dead = getHealth() <= 0;
+
+        if (is_dead)
+        {
+            cout << this->name << " умер!" << endl;
+        }
+    }
+
+public:
+    Character(string name, float health)
+    {
+        this->name = name;
+        this->health = health;
+        this->max_health = health;
+        UpdateIsDead();
+    }
+
+    void getInfo()
+    {
+        cout << "Имя: " << name
+             << "; Здоровье: " << health << "/" << max_health << ";\n";
+    }
+
+    float getHealth()
+    {
+        return health;
+    }
+
+    string getName()
+    {
+        return name;
+    }
+    
+    float getMaxHealth()
+    {
+        return max_health;
+    }
+    
+    bool isDead()
+    {
+        return is_dead;
+    }
+
+    void setHealth(float health)
+    {
+        this->health = health;
+
+        if (health < 0)
+        {
+            this->health = 0;
+        }
+
+        if (health > max_health)
+        {
+            this->health = max_health;
+        }
+
+        UpdateIsDead();
+    }
+
+    void heal(float heal)
+    {
+        setHealth(getHealth() + heal);
+    }
+
+    void damage(float damage)
+    {
+        setHealth(getHealth() - damage);
+    }
+};
+
+class Warrior : public Character
+{
+private:
+    float strength;
+
+public:
+    Warrior(string name, float health, float strength)
+        : Character(name, health)
+    {
+        this->strength = strength;
+    }
+
+    void attack(Character* victim)
+    {
+        victim->damage(strength);
+    }
+
+    float getDamage()
+    {
+        return strength;
+    }
+
+    void getInfo()
+    {
+        cout << "Имя: " << getName()
+             << "; Здоровье: " << getHealth()
+             << "; Сила: " << getDamage() << ";\n";
+    }
+};
+
+class Zealot : public Character
+{
+private:
+    float mana;
+
+public:
+    Zealot(string name, float health, float mana)
+        : Character(name, health)
+    {
+        this->mana = mana;
+    }
+
+    void heal(Character* target, float heal)
+    {
+        if (heal > mana)
+        {
+            cout << "Недостаточно маны!" << endl;
+            return;
+        }
+
+        target->heal(heal);
+        this->mana -= heal;
+        cout << getName() << " исцелил " << target->getName() 
+             << " на " << heal << " HP. Осталось маны: " << mana << endl;
+    }
+
+    float getMana()
+    {
+        return mana;
+    }
+
+    void getInfo()
+    {
+        cout << "Имя: " << getName()
+             << "; Здоровье: " << getHealth()
+             << "; Мана: " << getMana() << ";\n";
+    }
+};
+
+// Некромант - наследник Zealot
+class Necromancer : public Zealot
+{
+private:
+    float reviveCost;
+
+public:
+    Necromancer(string name, float health, float mana, float reviveCost = 30)
+        : Zealot(name, health, mana)
+    {
+        this->reviveCost = reviveCost;
+    }
+    
+    // Воскрешение персонажа
+    void revive(Character* target)
+    {
+        if (target->isDead())
+        {
+            if (getMana() >= reviveCost)
+            {
+                float reviveHealth = target->getMaxHealth() * 0.2f;
+                target->setHealth(reviveHealth);
+                cout << getName() << " воскресил " << target->getName() 
+                     << " с " << reviveHealth << " HP!" << endl;
+            }
+            else
+            {
+                cout << "Недостаточно маны для воскрешения!" << endl;
+            }
+        }
+        else
+        {
+            cout << target->getName() << " еще жив!" << endl;
+        }
+    }
+    
+    void getInfo()
+    {
+        cout << "Имя: " << getName()
+             << "; Здоровье: " << getHealth()
+             << "; Мана: " << getMana() 
+             << "; Некромант" << ";\n";
+    }
+};
+
+class Thief : public Warrior
+{
+private:
+    float stealPercent;
+
+public:
+    Thief(string name, float health, float strength, float stealPercent = 0.5f)
+        : Warrior(name, health, strength)
+    {
+        this->stealPercent = stealPercent;
+    }
+
+    void stealLife(Character* target)
+    {
+        float damage = getDamage();
+        float actualDamage = damage;
+        if (getHealth() < getMaxHealth() * 0.3f)
+        {
+            actualDamage = damage * 0.5f;
+            cout << getName() << " ослаблен, наносит только " << actualDamage << " урона!" << endl;
+        }
+        
+        target->damage(actualDamage);
+        float stolenHealth = actualDamage * stealPercent;
+        heal(stolenHealth);
+        
+        cout << getName() << " украл " << stolenHealth 
+             << " HP у " << target->getName() << endl;
+    }
+    
+    void getInfo()
+    {
+        cout << "Имя: " << getName()
+             << "; Здоровье: " << getHealth()
+             << "; Сила: " << getDamage() 
+             << "; Вор" << ";\n";
+    }
+};
+
+int main()
+{
+    Warrior w1("Воин_uno", 100, 150);
+    Warrior w2("Воин_dos", 100, 30);
+    Zealot zealot1("Жрец_tres", 100, 100);
+    Necromancer necro("Некромант_Морт", 80, 150);
+    Thief thief("Вор_Рик", 90, 80);
+
+    cout << "=== НАЧАЛЬНОЕ СОСТОЯНИЕ ===" << endl;
+    w1.getInfo();
+    w2.getInfo();
+    zealot1.getInfo();
+    necro.getInfo();
+    thief.getInfo();
+
+    cout << "\n=== БОЙ ===" << endl;
+    w1.attack(&w2);
+    w2.attack(&w1);
+    
+    w1.getInfo();
+    w2.getInfo();
+
+    cout << "\n=== ЛЕЧЕНИЕ ===" << endl;
+    zealot1.heal(&w1, 50);
+    w1.getInfo();
+
+    cout << "\n=== КРАЖА ЖИЗНИ (ВОР) ===" << endl;
+    thief.stealLife(&w2);
+    w2.getInfo();
+    thief.getInfo();
+
+    cout << "\n=== ВОСКРЕШЕНИЕ (НЕКРОМАНТ) ===" << endl;
+    Warrior w3("Слабый_воин", 50, 10);
+    w3.damage(100);
+    necro.revive(&w3);
+    w3.getInfo();
+
+    return 0;
+}
