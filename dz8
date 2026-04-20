@@ -1,0 +1,107 @@
+#include <iostream>
+#include <cstring>
+
+class String {
+private:
+    char* str;
+    int length;
+
+public:
+    String() {
+        length = 0;
+        str = new char[1];
+        str[0] = '\0';
+    }
+
+    String(const char* s) {
+        if (s == nullptr) {
+            length = 0;
+            str = new char[1];
+            str[0] = '\0';
+        } else {
+            length = std::strlen(s);
+            str = new char[length + 1];
+            std::strcpy(str, s);
+        }
+    }
+
+    String(const String& other) {
+        length = other.length;
+        str = new char[length + 1];
+        std::strcpy(str, other.str);
+    }
+
+    ~String() {
+        delete[] str;
+    }
+
+    String& operator=(const String& other) {
+        if (this != &other) {
+            delete[] str;
+            length = other.length;
+            str = new char[length + 1];
+            std::strcpy(str, other.str);
+        }
+        return *this;
+    }
+
+    String operator+(const String& other) const {
+        int newLength = length + other.length;
+        char* temp = new char[newLength + 1];
+        std::strcpy(temp, str);
+        std::strcat(temp, other.str);
+        
+        String newStr(temp);
+        delete[] temp;
+        return newStr;
+    }
+
+    String& operator+=(const String& other) {
+        int newLength = length + other.length;
+        char* newBuffer = new char[newLength + 1];
+        std::strcpy(newBuffer, str);
+        std::strcat(newBuffer, other.str);
+        
+        delete[] str;
+        str = newBuffer;
+        length = newLength;
+        return *this;
+    }
+
+    bool operator==(const String& other) const {
+        return std::strcmp(str, other.str) == 0;
+    }
+
+    bool operator!=(const String& other) const {
+        return !(*this == other);
+    }
+
+    bool operator<(const String& other) const {
+        return std::strcmp(str, other.str) < 0;
+    }
+
+    bool operator>(const String& other) const {
+        return std::strcmp(str, other.str) > 0;
+    }
+
+    char& operator[](int index) {
+        return str[index];
+    }
+
+    const char& operator[](int index) const {
+        return str[index];
+    }
+
+    bool operator!() const {
+        return length == 0;
+    }
+
+    operator const char*() const {
+        return str;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const String& s) {
+        os << s.str;
+        return os;
+    }
+};
