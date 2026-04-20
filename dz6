@@ -1,0 +1,140 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <cmath>
+
+class Item {
+private:
+    std::string name;
+public:
+    Item(std::string n) : name(n) {}
+    std::string getName() const { return name; }
+};
+
+class Slot {
+private:
+    Item* item;
+    int quantity;
+public:
+    Slot() : item(nullptr), quantity(0) {}
+    
+    Item* getItem() const { return item; }
+    int getQuantity() const { return quantity; }
+    
+    void setItem(Item* newItem) { item = newItem; }
+    void setQuantity(int q) { quantity = q; }
+    
+    void DecreaseQuantity(int amount) {
+        quantity -= amount;
+        if (quantity < 0) quantity = 0;
+    }
+};
+
+class Inventory {
+private:
+    std::vector<Slot> slots;
+    int maxSlots;
+
+public:
+    Inventory(int count) : maxSlots(count) {
+        slots.resize(maxSlots);
+    }
+
+    void addItem(Item* item, int q, int slotIndex) {
+        if (slotIndex >= 0 && slotIndex < maxSlots) {
+            slots[slotIndex].setItem(item);
+            slots[slotIndex].setQuantity(q);
+        }
+    }
+
+    Item* tryDropItemFromSlot(int Index, int quantity) {
+        if (Index < 0 || Index >= maxSlots) return nullptr;
+
+        Item* itemToDrop = slots[Index].getItem();
+
+        if (itemToDrop != nullptr && slots[Index].getQuantity() >= quantity) {
+            slots[Index].DecreaseQuantity(quantity);
+            
+            if (slots[Index].getQuantity() <= 0) {
+                slots[Index].setItem(nullptr);
+            }
+            return itemToDrop;
+        }
+        return nullptr;
+    }
+
+    bool tryDropItemByName(const std::string& name, Item*& droppedItem, int quantity) {
+        for (int i = 0; i < maxSlots; i++) {
+            if (slots[i].getItem() != nullptr && slots[i].getItem()->getName() == name) {
+                if (slots[i].getQuantity() >= quantity) {
+                    droppedItem = slots[i].getItem();
+                    slots[i].DecreaseQuantity(quantity);
+
+                    if (slots[i].getQuantity() <= 0) {
+                        slots[i].setItem(nullptr);
+                        slots[i].setQuantity(0);
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+};
+
+class CoordinateComponent {
+private:
+    float x, y;
+public:
+    CoordinateComponent(float startX = 0, float startY = 0) : x(startX), y(startY) {}
+    float getX() const { return x; }
+    float getY() const { return y; }
+    void setPosition(float newX, float newY) { x = newX; y = newY; }
+};
+
+class Character {
+private:
+    std::string name;
+    CoordinateComponent position;
+public:
+    Character(std::string n, float x, float y) : name(n), position(x, y) {}
+    CoordinateComponent& getPosition() { return position; }
+    std::string getName() const { return name; }
+};
+
+class Chest {
+private:
+    CoordinateComponent position;
+    Inventory inventory;
+public:
+    Chest(float x, float y, int slotsCount) : position(x, y), inventory(slotsCount) {}
+    CoordinateComponent& getPosition() { return position; }
+    Inventory& getInventory() { return inventory; }
+};
+
+int main() {
+    Character player("Гравець", 0.0f, 0.0f);
+    Chest woodenChest(1.0f, 1.0f, 5);
+
+    Item* goldCoin = new Item("Gold");
+    woodenChest.getInventory().addItem(goldCoin, 10, 0);
+
+    float dx = player.getPosition().getX() - woodenChest.getPosition().getX();
+    float dy = player.getPosition().getY() - woodenChest.getPosition().getY();
+    float distance = std::sqrt(dx * dx + dy * dy);
+
+    std::cout << "Відстань до скрині: " << distance << std::endl;
+
+    if (distance < 2.0f) {
+        Item* foundItem = nullptr;
+        if (woodenChest.getInventory().tryDropItemByName("Gold", foundItem, 5)) {
+            std::cout << player.getName() << " забрав 5 одиниць " << foundItem->getName() << " зі скрині!" << std::endl;
+        }
+    } else {
+        std::cout << "Занадто далеко!" << std::endl;
+    }
+
+    return 0;
+}
+
+//я-все-пропустив-пощадіть-будь-ласка
