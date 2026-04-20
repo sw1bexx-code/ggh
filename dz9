@@ -1,0 +1,163 @@
+#include <iostream>
+#include <string>
+#include <utility>
+
+using namespace std;
+
+class Texture
+{
+    char* buffer;
+    int size;
+
+public:
+    Texture(int size)
+    {
+        this->size = size;
+        buffer = new char[size];
+        cout << "Конструктор текстуры" << endl;
+    }
+
+    Texture(const Texture& other)
+    {
+        size = other.size;
+        buffer = new char[size];
+        for (int i = 0; i < size; i++)
+        {
+            buffer[i] = other.buffer[i];
+        }
+        cout << "Конструктор копирования текстуры" << endl;
+    }
+
+    Texture(Texture&& other) noexcept
+    {
+        buffer = other.buffer;
+        size = other.size;
+        other.buffer = nullptr;
+        other.size = 0;
+        cout << "Конструктор перемещения текстуры" << endl;
+    }
+
+    Texture& operator=(const Texture& other)
+    {
+        if (this == &other) { return *this; }
+        delete[] buffer;
+        size = other.size;
+        buffer = new char[size];
+        for (int i = 0; i < size; i++)
+        {
+            buffer[i] = other.buffer[i];
+        }
+        return *this;
+    }
+
+    Texture& operator=(Texture&& other) noexcept
+    {
+        if (this == &other) { return *this; }
+        delete[] buffer;
+        size = other.size;
+        buffer = other.buffer;
+        other.size = 0;
+        other.buffer = nullptr;
+        return *this;
+    }
+
+    ~Texture()
+    {
+        delete[] buffer;
+    }
+};
+
+class Material
+{
+    Texture texture;
+    string name;
+
+public:
+    Material() : texture(16), name("default")
+    {
+        cout << "Конструктор по умолчанию Material" << endl;
+    }
+
+    Material(int textureSize, const string& name) : texture(textureSize), name(name)
+    {
+        cout << "Материальный конструктор" << endl;
+    }
+
+    Material(const Material& other) : texture(other.texture), name(other.name)
+    {
+        cout << "Конструктор материального копирования" << endl;
+    }
+
+    Material(Material&& other) noexcept : texture(move(other.texture)), name(move(other.name))
+    {
+        cout << "Конструктор перемещения материала" << endl;
+    }
+
+    Material& operator=(const Material& other) noexcept
+    {
+        if (this == &other) { return *this; }
+        texture = other.texture;
+        name = other.name;
+        return *this;
+    }
+
+    Material& operator=(Material&& other) noexcept
+    {
+        if (this == &other) { return *this; }
+        texture = std::move(other.texture);
+        name = std::move(other.name);
+        return *this;
+    }
+};
+
+class MaterialContainer
+{
+    Material** items;
+    int count;
+    int bufferSize;
+
+    void resize()
+    {
+        int newBufferSize = (bufferSize == 0) ? 1 : bufferSize * 2;
+        Material** newItems = new Material*[newBufferSize];
+        for (int i = 0; i < count; i++)
+        {
+            newItems[i] = items[i];
+        }
+        delete[] items;
+        items = newItems;
+        bufferSize = newBufferSize;
+    }
+
+public:
+    MaterialContainer() : items(nullptr), count(0), bufferSize(0) {}
+
+    void addMaterial(const Material& material)
+    {
+        if (count == bufferSize)
+        {
+            resize();
+        }
+        items[count] = new Material(material);
+        count++;
+    }
+
+    void removeMaterial()
+    {
+        if (count > 0)
+        {
+            count--;
+            delete items[count];
+            items[count] = nullptr;
+        }
+    }
+
+    ~MaterialContainer()
+    {
+        for (int i = 0; i < count; i++)
+        {
+            delete items[i];
+        }
+        delete[] items;
+    }
+};
