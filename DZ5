@@ -1,0 +1,207 @@
+#define _CRT_SECURE_NO_WARNINGS // отключает предупреждения Visual Studio про "небезопасные" функции
+#include <iostream>
+#include <cstring>   // для работы со строками (strcmp, strcpy)
+#include <cstdio>    // для работы с файлами (fopen, fread, fwrite)
+#include <windows.h> // для настройки кодировки консоли (чтобы кириллица работала)
+
+using namespace std;
+
+// максимальное количество книг (ограничение массива)
+#define MAX_BOOKS 1000
+// максимальная длина строки (название, автор)
+#define MAX_TITLE 100
+
+// структура объединяет все данные о книге в один тип
+struct Book {
+    char title[MAX_TITLE];   // название книги
+    char author[MAX_TITLE];  // автор книги
+    int year;                // год издания
+};
+
+// массив, где хранятся все книги
+Book library[MAX_BOOKS];
+// сколько книг реально добавлено
+int bookCount = 0;
+
+// добавление книги
+void addBook() {
+    if (bookCount >= MAX_BOOKS) {
+        cout << "Ошибка: Библиотека переполнена!" << endl;
+        return;
+    }
+
+    cout << "Введите название: ";
+    cin.ignore(); // очищаем буфер
+    cin.getline(library[bookCount].title, MAX_TITLE);
+
+    cout << "Введите автора: ";
+    cin.getline(library[bookCount].author, MAX_TITLE);
+
+    cout << "Введите год издания: ";
+    cin >> library[bookCount].year;
+
+    bookCount++;
+    cout << "Книга успешно добавлена!" << endl;
+}
+
+// вывод всех книг
+void showAll() {
+    if (bookCount == 0) {
+        cout << "Библиотека пуста." << endl;
+        return;
+    }
+
+    for (int i = 0; i < bookCount; i++) {
+        cout << "[" << i << "] Название: " << library[i].title
+            << " | Автор: " << library[i].author
+            << " | Год: " << library[i].year << endl;
+    }
+}
+
+// удаление книги
+void deleteBook() {
+    int index;
+    cout << "Введите индекс для удаления (0 - " << bookCount - 1 << "): ";
+    cin >> index;
+
+    if (index < 0 || index >= bookCount) {
+        cout << "Ошибка: Неверный индекс!" << endl;
+        return;
+    }
+
+    // сдвигаем все элементы влево
+    for (int i = index; i < bookCount - 1; i++) {
+        library[i] = library[i + 1];
+    }
+
+    bookCount--;
+    cout << "Книга удалена." << endl;
+}
+
+// поиск книги
+void searchBook() {
+    int choice;
+    cout << "Искать по: 1. Названию  2. Году: ";
+    cin >> choice;
+
+    if (choice == 1) {
+        char searchTitle[MAX_TITLE];
+        cout << "Введите название: ";
+        cin.ignore();
+        cin.getline(searchTitle, MAX_TITLE);
+
+        for (int i = 0; i < bookCount; i++) {
+            if (strcmp(library[i].title, searchTitle) == 0) {
+                cout << "Найдено: " << library[i].title
+                    << " (Автор: " << library[i].author << ")" << endl;
+            }
+        }
+    }
+    else {
+        int searchYear;
+        cout << "Введите год: ";
+        cin >> searchYear;
+
+        for (int i = 0; i < bookCount; i++) {
+            if (library[i].year == searchYear) {
+                cout << "Найдено: " << library[i].title
+                    << " (" << library[i].year << " год)" << endl;
+            }
+        }
+    }
+}
+
+// сортировка
+void sortBooks() {
+    int choice;
+    cout << "Сортировать по: 1. Названию  2. Году: ";
+    cin >> choice;
+
+    for (int i = 0; i < bookCount - 1; i++) {
+        for (int j = 0; j < bookCount - i - 1; j++) {
+            bool needSwap = false;
+            if (choice == 1) {
+                if (strcmp(library[j].title, library[j + 1].title) > 0)
+                    needSwap = true;
+            }
+            else {
+                if (library[j].year > library[j + 1].year)
+                    needSwap = true;
+            }
+
+            if (needSwap) {
+                Book temp = library[j];
+                library[j] = library[j + 1];
+                library[j + 1] = temp;
+            }
+        }
+    }
+    cout << "Сортировка завершена!" << endl;
+}
+
+// сохранение в файл
+void saveToFile() {
+    FILE* f = fopen("library.dat", "wb");
+    if (!f) {
+        cout << "Ошибка открытия файла!" << endl;
+        return;
+    }
+    fwrite(&bookCount, sizeof(int), 1, f);
+    fwrite(library, sizeof(Book), bookCount, f);
+    fclose(f);
+    cout << "Данные сохранены в файл library.dat" << endl;
+}
+
+// загрузка из файла
+void loadFromFile() {
+    FILE* f = fopen("library.dat", "rb");
+    if (!f) {
+        cout << "Файл не найден." << endl;
+        return;
+    }
+    int tempCount = 0;
+    if (fread(&tempCount, sizeof(int), 1, f) != 1) {
+        fclose(f);
+        return;
+    }
+    if (tempCount > MAX_BOOKS) tempCount = MAX_BOOKS;
+    bookCount = tempCount;
+    fread(library, sizeof(Book), bookCount, f);
+    fclose(f);
+    cout << "Данные успешно загружены!" << endl;
+}
+
+int main() {
+    // Настройка кодировки для работы с русским языком
+    SetConsoleCP(1251);
+    SetConsoleOutputCP(1251);
+
+    int choice;
+    while (true) {
+        cout << "\n --- МЕНЮ БИБЛИОТЕКИ ---" << endl;
+        cout << "1. Добавить книгу" << endl;
+        cout << "2. Удалить книгу" << endl;
+        cout << "3. Поиск" << endl;
+        cout << "4. Показать все книги" << endl;
+        cout << "5. Сортировать" << endl;
+        cout << "6. Сохранить в файл" << endl;
+        cout << "7. Загрузить из файла" << endl;
+        cout << "0. Выход" << endl;
+        cout << "Выберите действие: ";
+        cin >> choice;
+
+        if (choice == 0) break;
+
+        switch (choice) {
+        case 1: addBook(); break;
+        case 2: deleteBook(); break;
+        case 3: searchBook(); break;
+        case 4: showAll(); break;
+        case 5: sortBooks(); break;
+        case 6: saveToFile(); break;
+        case 7: loadFromFile(); break;
+        default: cout << "Неверный выбор!" << endl;
+        }
+    }
+    return 0;
+}
