@@ -1,0 +1,299 @@
+#include <chrono>
+#include <iostream>
+#include <thread>
+#include <vector>
+#include <string>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
+
+using namespace std;
+
+class player;
+
+class hero
+{
+    int health_;
+    int max_health_;
+    int damage_;
+    string name_;
+    
+public:
+    int get_health() const { return health_; }
+    int get_max_health() const { return max_health_; }
+    int get_damage() const { return damage_; }
+    string get_name() const { return name_; }
+    
+    bool IsAlive() const { return health_ > 0; }
+    
+    hero(const string& name, const int health, const int damage) 
+        : name_(name), health_(health), max_health_(health), damage_(damage) {}
+        
+    virtual ~hero() = default;
+    
+    virtual void make_move(player* ally_player, player* enemy_player, vector<string>& combat_log) = 0;
+    
+    void take_damage(int value)
+    {
+        health_ -= value;
+        if (health_ < 0) health_ = 0;
+    }
+
+    void heal(int value)
+    {
+        health_ += value;
+        if (health_ > max_health_) health_ = max_health_;
+    }
+};
+
+class player
+{
+    vector<hero*> heroes_;
+    vector<hero*> turn_queue_;
+    string name_;
+    
+public:
+    player(const string& name) : name_(name) {}
+
+    template<typename T, typename... Args>
+    void add_hero(Args&&... args)
+    {
+        hero* new_hero = new T(std::forward<Args>(args)...);
+        heroes_.push_back(new_hero);
+        turn_queue_.push_back(new_hero);
+    }
+    
+    const vector<hero*>& get_heroes() const { return heroes_; }
+    string get_name() const { return name_; }
+    
+    bool has_alive_heroes() const
+    {
+        for (const hero* h : heroes_)
+        {
+            if (h->IsAlive()) return true;
+        }
+        return false;
+    }
+
+    void update_queue()
+    {
+        turn_queue_.erase(
+            remove_if(turn_queue_.begin(), turn_queue_.end(), [](hero* h) { return !h->IsAlive(); }),
+            turn_queue_.end()
+        );
+    }
+
+    hero* get_next_hero()
+    {
+        update_queue();
+        if (turn_queue_.empty()) return nullptr;
+        
+        hero* current = turn_queue_.front();
+        turn_queue_.erase(turn_queue_.begin());
+        turn_queue_.push_back(current);
+        return current;
+    }
+
+    vector<hero*> get_alive_heroes() const
+    {
+        vector<hero*> alive;
+        for (hero* h : heroes_)
+        {
+            if (h->IsAlive()) alive.push_back(h);
+        }
+        return alive;
+    }
+
+    void clear_heroes()
+    {
+        for (const hero* h : heroes_)
+        {
+            delete h;
+        }
+        heroes_.clear();
+        turn_queue_.clear();
+    }
+
+    virtual ~player()
+    {
+        clear_heroes();
+    }
+};
+
+class warrior : public hero
+{
+public:
+    warrior(const string& name, const int health, const int damage) : hero(name, health, damage) {}
+
+    void make_move(player* ally_player, player* enemy_player, vector<string>& combat_log) override
+    {
+        vector<hero*> targets = enemy_player->get_alive_heroes();
+        if (targets.empty()) return;
+
+        hero* target = targets[rand() % targets.size()];
+        target->take_damage(get_damage());
+        
+        combat_log.push_back("[" + ally_player->get_name() + "] Воїн " + get_name() + " атакував " + target->get_name() + " на " + to_string(get_damage()) + " шкоди.");
+    }
+};
+
+class mage : public hero
+{
+public:
+    mage(const string& name, const int health, const int damage) : hero(name, health, damage) {}
+
+    void make_move(player* ally_player, player* enemy_player, vector<string>& combat_log) override
+    {
+        vector<hero*> allies = ally_player->get_alive_heroes();
+        vector<hero*> targets_to_heal;
+
+        for (hero* h : allies)
+        {
+            if (h->get_health() < h->get_max_health())
+            {
+                targets_to_heal.push_back(h);
+            }
+        }
+
+        if (targets_to_heal.empty())
+        {
+            combat_log.push_back("[" + ally_player->get_name() + "] Маг " + get_name() + " хотів полікувати когось, але у всіх повне здоров'я.");
+            return;
+        }
+
+        hero* target = targets_to_heal[rand() % targets_to_heal.size()];
+        int heal_amount = get_damage(); 
+        target->heal(heal_amount);
+
+        combat_log.push_back("[" + ally_player->get_name() + "] Маг " + get_name() + " зцілив " + target->get_name() + " на " + to_string(heal_amount) + " ХП.");
+    }
+};
+
+class robber : public hero
+{
+public:
+    robber(const string& name, const int health, const int damage) : hero(name, health, damage) {}
+
+    void make_move(player* ally_player, player* enemy_player, vector<string>& combat_log) override
+    {
+        vector<hero*> targets = enemy_player->get_alive_heroes();
+        if (targets.empty()) return;
+
+        hero* target = targets[rand() % targets.size()];
+
+        if (rand() % 2 == 0)
+        {
+            int stealth_damage = get_damage() * 3;
+            target->take_damage(stealth_damage);
+            combat_log.push_back("[" + ally_player->get_name() + "] Розбійник " + get_name() + " непомітно підкрався і завдав " + target->get_name() + " критичні " + to_string(stealth_damage) + " шкоди.");
+        }
+        else
+        {
+            target->take_damage(get_damage());
+            combat_log.push_back("[" + ally_player->get_name() + "] Розбійника " + get_name() + " було виявлено! Він завдав лише " + to_string(get_damage()) + " шкоди " + target->get_name() + ".");
+        }
+    }
+};
+
+void display_game_state(const player& p1, const player& p2, const vector<string>& combat_log)
+{
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+
+    cout << "==================================================\n";
+    cout << "СТАН ГРАВЦІВ\n";
+    cout << "==================================================\n";
+    
+    cout << p1.get_name() << ":\n";
+    for (const hero* h : p1.get_heroes())
+    {
+        cout << "  - " << h->get_name() << " [" << (h->IsAlive() ? "Живий" : "Мертвий") << "] "
+             << "ХП: " << h->get_health() << "/" << h->get_max_health() 
+             << ", Шкода: " << h->get_damage() << "\n";
+    }
+    
+    cout << "\n" << p2.get_name() << ":\n";
+    for (const hero* h : p2.get_heroes())
+    {
+        cout << "  - " << h->get_name() << " [" << (h->IsAlive() ? "Живий" : "Мертвий") << "] "
+             << "ХП: " << h->get_health() << "/" << h->get_max_health() 
+             << ", Шкода: " << h->get_damage() << "\n";
+    }
+    
+    cout << "==================================================\n";
+    cout << "ІСТОРІЯ ПОДІЙ\n";
+    cout << "==================================================\n";
+    
+    for (const string& log : combat_log)
+    {
+        cout << log << "\n";
+    }
+    cout << "==================================================\n";
+}
+
+int main(int argc, char* argv[])
+{
+    srand(static_cast<unsigned int>(time(nullptr)));
+
+    player player_1("Гравець 1");
+    player_1.add_hero<warrior>("Арагорн", 15, 3);
+    player_1.add_hero<mage>("Гендальф", 12, 4);
+    player_1.add_hero<robber>("Леголас", 10, 2);
+    
+    player player_2("Гравець 2");
+    player_2.add_hero<warrior>("Гімлі", 16, 3);
+    player_2.add_hero<mage>("Саруман", 11, 4);
+    player_2.add_hero<robber>("Ґріма", 9, 2);
+
+    vector<string> combat_log;
+    bool player_1_turn = true;
+
+    display_game_state(player_1, player_2, combat_log);
+    this_thread::sleep_for(chrono::seconds(2));
+
+    while (player_1.has_alive_heroes() && player_2.has_alive_heroes())
+    {
+        if (player_1_turn)
+        {
+            hero* active_hero = player_1.get_next_hero();
+            if (active_hero != nullptr)
+            {
+                active_hero->make_move(&player_1, &player_2, combat_log);
+            }
+        }
+        else
+        {
+            hero* active_hero = player_2.get_next_hero();
+            if (active_hero != nullptr)
+            {
+                active_hero->make_move(&player_2, &player_1, combat_log);
+            }
+        }
+
+        display_game_state(player_1, player_2, combat_log);
+        
+        player_1_turn = !player_1_turn;
+        this_thread::sleep_for(chrono::milliseconds(1500));
+    }
+
+    cout << "\nБІЙ ЗАВЕРШЕНО!\n";
+    if (!player_1.has_alive_heroes() && !player_2.has_alive_heroes())
+    {
+        cout << "Нічия! Всі герої загинули одночасно.\n";
+    }
+    else if (!player_1.has_alive_heroes())
+    {
+        cout << player_1.get_name() << " програв! Всі його герої померли.\n";
+        cout << "Переміг " << player_2.get_name() << "!\n";
+    }
+    else
+    {
+        cout << player_2.get_name() << " програв! Всі його герої померли.\n";
+        cout << "Переміг " << player_1.get_name() << "!\n";
+    }
+
+    return 0;
+}
