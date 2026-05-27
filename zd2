@@ -1,0 +1,263 @@
+#include <list>
+#include <vector>
+#include <concepts>
+#include <iostream>
+#include <thread>
+#include <string>
+#include <algorithm>
+
+using namespace std;
+
+class Scene;
+
+enum class ActorType
+{
+    Field,
+    Rabbit,
+    Fox
+};
+
+class Actor
+{
+    Scene* scene;
+    bool isPendingDestroy = false;
+    
+public:
+    bool IsPendingDestroy() const { return isPendingDestroy; }
+    void SetPendingDestroy (bool value) { isPendingDestroy = value; }
+    
+    Scene* GetScene() const { return scene; }
+    
+    Actor(Scene* scene)
+    {
+        this->scene = scene;
+    }
+    
+    void DestroyActor()
+    {
+        isPendingDestroy = true;
+    }
+    
+    virtual void Tick() = 0;
+    virtual void Print() = 0;
+    virtual ActorType GetType() const = 0;
+    
+    virtual ~Actor() = default;
+};
+
+class Scene
+{
+    vector<Actor*> actors;
+    int tick = 0;
+    int CleaningRate = 60;
+    
+public:
+    const std::vector<Actor*>& GetActors() const { return actors; }
+    
+    template <typename T>
+    requires std::derived_from<T, Actor>
+    T* SpawnActor()
+    {
+        T* actor = new T(this);
+        actors.push_back(actor);
+        return actor;
+    }
+    
+    void DespawnActor(Actor* actor)
+    {
+        actor->DestroyActor();
+    }
+    
+    void ClearPendingDestroy()
+    {
+        std::erase_if(actors, [](const Actor* actor)
+        {
+            const bool result = actor->IsPendingDestroy();
+            if (result)
+            {
+                delete actor;
+            }
+            return result;
+        });
+    }
+    
+    void Tick()
+    {
+        tick++;
+        
+        size_t currentSize = actors.size();
+        for (size_t i = 0; i < currentSize; ++i)
+        {
+            if (!actors[i]->IsPendingDestroy())
+            {
+                actors[i]->Tick();
+            }
+        }
+        
+        if (tick % 5 == 0)
+        {
+            ClearPendingDestroy();
+        }
+    }
+    
+    ~Scene()
+    {
+        for (Actor* actor : actors)
+        {
+            delete actor;
+        }
+    }
+};
+
+class Field : public Actor
+{
+    int grassAmount = 10;
+    
+public:
+    Field(Scene* scene) : Actor(scene) {}
+    
+    ActorType GetType() const override { return ActorType::Field; }
+    
+    int GetGrass() const { return grassAmount; }
+    
+    void ConsumeGrass(int amount)
+    {
+        grassAmount -= amount;
+        if (grassAmount < 0) grassAmount = 0;
+    }
+    
+    void Tick() override
+    {
+        grassAmount += 2;
+    }
+    
+    void Print() override
+    {
+        cout << "[Поле] Трава: " << grassAmount << endl;
+    }
+};
+
+class Rabbit : public Actor
+{
+    int energy = 5;
+    int age = 0;
+    
+public:
+    Rabbit(Scene* scene) : Actor(scene) {}
+    
+    ActorType GetType() const override { return ActorType::Rabbit; }
+    
+    void Tick() override
+    {
+        age++;
+        energy--;
+        
+        if (energy <= 0 || age > 15)
+        {
+            DestroyActor();
+            return;
+        }
+        
+        for (Actor* actor : GetScene()->GetActors())
+        {
+            if (!actor->IsPendingDestroy() && actor->GetType() == ActorType::Field)
+            {
+                Field* field = static_cast<Field*>(actor);
+                if (field->GetGrass() > 0)
+                {
+                    field->ConsumeGrass(3);
+                    energy += 4;
+                    break;
+                }
+            }
+        }
+        
+        if (energy >= 10)
+        {
+            energy -= 5;
+            GetScene()->SpawnActor<Rabbit>();
+        }
+    }
+    
+    void Print() override
+    {
+        cout << " -> [Заєць] Енергія: " << energy << ", Вік: " << age << endl;
+    }
+};
+
+class Fox : public Actor
+{
+    int energy = 8;
+    int age = 0;
+    
+public:
+    Fox(Scene* scene) : Actor(scene) {}
+    
+    ActorType GetType() const override { return ActorType::Fox; }
+    
+    void Tick() override
+    {
+        age++;
+        energy--;
+        
+        if (energy <= 0 || age > 20)
+        {
+            DestroyActor();
+            return;
+        }
+        
+        for (Actor* actor : GetScene()->GetActors())
+        {
+            if (!actor->IsPendingDestroy() && actor->GetType() == ActorType::Rabbit)
+            {
+                Rabbit* rabbit = static_cast<Rabbit*>(actor);
+                rabbit->DestroyActor();
+                energy += 6;
+                break;
+            }
+        }
+        
+        if (energy >= 14)
+        {
+            energy -= 6;
+            GetScene()->SpawnActor<Fox>();
+        }
+    }
+    
+    void Print() override
+    {
+        cout << " -> [Лисиця] Енергія: " << energy << ", Вік: " << age << endl;
+    }
+};
+
+int main(int argc, char* argv[])
+{
+    Scene scene;
+
+    scene.SpawnActor<Field>();
+    
+    scene.SpawnActor<Rabbit>();
+    scene.SpawnActor<Rabbit>();
+    
+    scene.SpawnActor<Fox>();
+    
+    for (int i = 0; i < 20; i++)
+    {
+        cout << "=== Крок симуляції " << i + 1 << " ===" << endl;
+        
+        scene.Tick();
+        
+        for (Actor* actor : scene.GetActors())
+        {
+            if (!actor->IsPendingDestroy())
+            {
+                actor->Print();
+            }
+        }
+        
+        cout << endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+    
+    return 0;
+}
