@@ -1,0 +1,109 @@
+#include <list>
+#include <stdexcept>
+
+template<typename T>
+class Stack
+{
+    std::list<T> items;
+    
+    const int max_size = -1;
+    
+public:
+    Stack(int max_size) : max_size(max_size)
+    {
+    }
+    
+    void Push(const T& item)
+    {
+        if (max_size != -1 && items.size() >= static_cast<size_t>(max_size))
+        {
+            throw std::overflow_error("Stack overflow");
+        }
+        items.push_front(item);
+    }
+    
+    T Pop()
+    {
+        if (Empty())
+        {
+            throw std::underflow_error("Stack is empty");
+        }
+        T front_item = items.front();
+        items.pop_front();
+        return front_item;
+    }
+    
+    const T& Top() const
+    {
+        if (Empty())
+        {
+            throw std::underflow_error("Stack is empty");
+        }
+        return items.front();
+    }
+    
+    bool Empty() const
+    {
+        return items.empty();
+    }
+    
+    int Size() const
+    {
+        return static_cast<int>(items.size());
+    }
+};
+
+template<typename T>
+class Queue
+{
+    std::list<T> items;
+
+    bool isCyclical;
+    
+public:
+    Queue(bool isCyclical)
+    {
+        this->isCyclical = isCyclical;
+    }
+    
+    void Push(const T& item)
+    {
+        items.push_back(item);
+    }
+    
+    T Pop()
+    {
+        if (Empty())
+        {
+            throw std::underflow_error("Queue is empty");
+        }
+        T front_item = items.front();
+        items.pop_front();
+        
+        if (isCyclical)
+        {
+            items.push_back(front_item);
+        }
+        
+        return front_item;
+    }
+    
+    const T& Front() const
+    {
+        if (Empty())
+        {
+            throw std::underflow_error("Queue is empty");
+        }
+        return items.front();
+    }
+    
+    bool Empty() const
+    {
+        return items.empty();
+    }
+    
+    int Size() const
+    {
+        return static_cast<int>(items.size());
+    }
+};
