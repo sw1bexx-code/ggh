@@ -1,0 +1,98 @@
+#include <iostream>
+#include <algorithm>
+
+template <typename T>
+class SmartArray {
+private:
+    T* data;
+    size_t size;
+    size_t capacity;
+
+    void Resize(size_t new_capacity) {
+        T* new_data = new T[new_capacity];
+        for (size_t i = 0; i < size; ++i) {
+            new_data[i] = data[i];
+        }
+        delete[] data;
+        data = new_data;
+        capacity = new_capacity;
+    }
+
+public:
+    SmartArray() : data(nullptr), size(0), capacity(0) {}
+    
+    SmartArray(size_t initial_capacity) : size(0), capacity(initial_capacity) {
+        data = new T[capacity];
+    }
+
+    ~SmartArray() {
+        delete[] data;
+    }
+
+    void PushBack(const T& value) {
+        if (size >= capacity) {
+            Resize(capacity == 0 ? 4 : capacity * 2);
+        }
+        data[size++] = value;
+    }
+
+    size_t GetSize() const { return size; }
+
+    T& operator[](size_t index) { return data[index]; }
+    const T& operator[](size_t index) const { return data[index]; }
+
+    template<typename Func>
+    void ForEach(Func func) {
+        for (size_t i = 0; i < size; ++i) {
+            func(data[i]);
+        }
+    }
+
+    template<typename Predicate>
+    void Sort(Predicate pred) {
+        if (size < 2) return;
+
+        for (size_t i = 0; i < size - 1; ++i) {
+            for (size_t j = 0; j < size - i - 1; ++j) {
+                if (pred(data[j], data[j + 1])) {
+                    std::swap(data[j], data[j + 1]);
+                }
+            }
+        }
+    }
+
+    template<typename Predicate>
+    size_t CountIf(Predicate pred) const {
+        size_t count = 0;
+        for (size_t i = 0; i < size; ++i) {
+            if (pred(data[i])) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    template<typename Predicate>
+    T* FindIf(Predicate pred) {
+        for (size_t i = 0; i < size; ++i) {
+            if (pred(data[i])) {
+                return &data[i];
+            }
+        }
+        return nullptr;
+    }
+
+    template<typename Predicate>
+    void RemoveIf(Predicate pred) {
+        size_t write_index = 0;
+        for (size_t read_index = 0; read_index < size; ++read_index) {
+            if (!pred(data[read_index])) {
+                if (write_index != read_index) {
+                    data[write_index] = data[read_index];
+                }
+                write_index++;
+            }
+        }
+        size = write_index;
+    }
+};
