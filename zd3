@@ -1,0 +1,224 @@
+#include <iostream>
+#include <fstream>
+#include <map>
+#include <vector>
+#include <memory>
+#include <string>
+
+using namespace std;
+
+class asset
+{
+protected:
+    const string path_;
+
+public:
+    explicit asset(string path) : path_(move(path)) {}
+    virtual ~asset() = default;
+
+    virtual const string& read() = 0;
+    const string& get_path() const { return path_; }
+};
+
+class text_asset : public asset
+{
+private:
+    string text_;
+    bool loaded_;
+
+    void load_from_file() 
+    {
+        if (loaded_) return;
+
+        ifstream file(path_);
+        if (!file.is_open()) 
+        {
+            text_ = "[Помилка: Не вдалося відкрити файл або файл відсутній]";
+            loaded_ = true;
+            return;
+        }
+
+        string line;
+        text_.clear();
+        while (getline(file, line)) 
+        {
+            text_ += line + "\n";
+        }
+        loaded_ = true;
+    }
+
+public:
+    explicit text_asset(const string& path) : asset(path), loaded_(false) {}
+    ~text_asset() override = default;
+
+    const string& read() override 
+    {
+        load_from_file();
+        return text_;
+    }
+};
+
+class asset_manager
+{
+private:
+    map<string, weak_ptr<asset>> assets_;
+
+public:
+    shared_ptr<asset> get(const string& path) 
+    {
+        auto it = assets_.find(path);
+        
+        if (it != assets_.end()) 
+        {
+            if (auto shared = it->second.lock()) 
+            {
+                return shared; 
+            }
+        }
+
+        shared_ptr<asset> new_asset = make_shared<text_asset>(path);
+        assets_[path] = new_asset; 
+        return new_asset;
+    }
+
+    void clean_unused() 
+    {
+        for (auto it = assets_.begin(); it != assets_.end();) 
+        {
+            if (it->second.expired()) 
+            {
+                it = assets_.erase(it);
+            } 
+            else 
+            {
+                ++it;
+            }
+        }
+    }
+};
+
+int main()
+{
+    asset_manager manager;
+    vector<shared_ptr<asset>> open_assets;
+    
+    int choice = 0;
+    while (true)
+    {
+        cout << "\n--- МЕНЮ ---" << endl;
+        cout << "1. Завантажити актив (додати до сесії)" << endl;
+        cout << "2. Відобразити утримувані ресурси в пам'яті" << endl;
+        cout << "3. Читати вміст ресурсу (Ліниве завантаження вмісту)" << endl;
+        cout << "4. Вивантажити ресурс (видалити з сесії)" << endl;
+        cout << "5. Вихід" << endl;
+        cout << "Оберіть опцію: ";
+        
+        if (!(cin >> choice)) 
+        {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            continue;
+        }
+
+        if (choice == 5) break;
+
+        if (choice == 1) 
+        {
+            string path;
+            cout << "Введіть шлях до текстового файлу: ";
+            cin >> path;
+            
+            shared_ptr<asset> res = manager.get(path);
+            
+            bool already_opened = false;
+            for (const auto& a : open_assets) 
+            {
+                if (a->get_path() == path) 
+                {
+                    already_opened = true;
+                    break;
+                }
+            }
+            
+            if (!already_opened) 
+            {
+                open_assets.push_back(res);
+                cout << "Ресурс '" << path << "' додано до поточної сесії." << endl;
+            } 
+            else 
+            {
+                cout << "Цей ресурс вже є у вашій сесії." << endl;
+            }
+        }
+        else if (choice == 2) 
+        {
+            manager.clean_unused();
+            cout << "\nАктивні ресурси, що утримуються в пам'яті (open_assets):" << endl;
+            if (open_assets.empty()) 
+            {
+                cout << "[Сесія порожня]" << endl;
+            }
+            for (size_t i = 0; i < open_assets.size(); ++i) 
+            {
+                cout << i + 1 << ". " << open_assets[i]->get_path() << endl;
+            }
+        }
+        else if (choice == 3) 
+        {
+            if (open_assets.empty()) 
+            {
+                cout << "Немає завантажених ресурсів для читання." << endl;
+                continue;
+            }
+            
+            cout << "Оберіть номер ресурсу для читання:\n";
+            for (size_t i = 0; i < open_assets.size(); ++i) 
+            {
+                cout << i + 1 << ". " << open_assets[i]->get_path() << endl;
+            }
+            
+            size_t idx;
+            cin >> idx;
+            if (idx > 0 && idx <= open_assets.size()) 
+            {
+                cout << "\n--- Вміст файлу '" << open_assets[idx - 1]->get_path() << "' ---" << endl;
+                cout << open_assets[idx - 1]->read();
+                cout << "-----------------------------------" << endl;
+            } 
+            else 
+            {
+                cout << "Невірний номер." << endl;
+            }
+        }
+        else if (choice == 4) 
+        {
+            if (open_assets.empty()) 
+            {
+                cout << "Немає ресурсів для вивантаження." << endl;
+                continue;
+            }
+            
+            cout << "Оберіть номер ресурсу для вивантаження з сесії:\n";
+            for (size_t i = 0; i < open_assets.size(); ++i) 
+            {
+                cout << i + 1 << ". " << open_assets[i]->get_path() << endl;
+            }
+            
+            size_t idx;
+            cin >> idx;
+            if (idx > 0 && idx <= open_assets.size()) 
+            {
+                cout << "Ресурс '" << open_assets[idx - 1]->get_path() << "' видалено із сесії." << endl;
+                open_assets.erase(open_assets.begin() + (idx - 1));
+                
+                manager.clean_unused();
+            } 
+            else 
+            {
+                cout << "Невірний номер." << endl;
+            }
+        }
+    }
+    
+    return 0;
+}
